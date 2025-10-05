@@ -15,7 +15,7 @@ class signClass:
         self.cookies = {}
         self.domain = "http://bj.k8n.cn"
         self.urlStudent = self.domain + "/student"
-        self.showWay = 1
+        self.showWay = 1       #  1表示用tk UI展示 0表示不用仅下载到本地
         self.imgPath = "qrcode.png"
     def createSession(self):
         session = requests.Session()

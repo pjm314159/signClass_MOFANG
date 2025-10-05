@@ -18,7 +18,7 @@ class QRLoginApp:
         # 添加提示文本
         self.label_text = tk.Label(
             self.main_frame,
-            text="请扫描二维码登录,登录后退出",
+            text="请扫描二维码登录,登录后退出界面",
             font=('Microsoft YaHei', 16, 'bold'),
             fg='#333333'
         )
