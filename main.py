@@ -16,7 +16,7 @@ class signClass:
         self.domain = "http://bj.k8n.cn"
         self.urlStudent = self.domain + "/student"
         self.showWay = 1       #  1表示用tk UI展示 0表示不用仅下载到本地
-        self.imgPath = "qrcode.png"
+        self.imgPath = "qrcode.png"  #图片保存路径
     def createSession(self):
         session = requests.Session()
         session.headers.update(self.headers)
