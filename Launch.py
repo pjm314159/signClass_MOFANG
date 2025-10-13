@@ -21,14 +21,15 @@ class Launch:
             for j in c[i]["data"]["gps"]:
                 if j["status"] == 1:
                     gpsNumber += 1
-                    print(self.signClass.gpsSign(j["params"], j["gpsUrl"]))
+                    print("gps:"+self.signClass.gpsSign(j["params"], j["gpsUrl"]))
             for l in range(len(c[i]["data"]["password"])):
                 if c[i]["data"]["password"][l]["status"] == 1:
                     passwordNumber += 1
                     result = self.signClass.passwordSign(c[i]["data"]["password"][l]["pwdUrl"])
                     if result == -1:
                         c[i]["data"]["password"][l]["status"] = -1
-                    print(self.signClass.passwordSign(c[i]["data"]["password"][l]["pwdUrl"]))
+                    else:
+                        print("password:"+self.signClass.passwordSign(c[i]["data"]["password"][l]["pwdUrl"]))
         if gpsNumber == 0:
             print("gps无可签到")
         if passwordNumber == 0:
@@ -46,6 +47,9 @@ class Launch:
         self.root.mainloop()
 
 if __name__ == "__main__":
-    app = Launch()
-    app.launch()
+    try:
+        app = Launch()
+        app.launch()
+    except Exception as e:
+        print(e)
     system("pause")
