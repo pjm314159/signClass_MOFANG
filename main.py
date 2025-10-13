@@ -1,9 +1,7 @@
 import requests
 from bs4 import BeautifulSoup as bs
 import qrcode
-from showqrcode import QRLoginApp
 import  json
-import tkinter as tk
 class signClass:
     def __init__(self):
         self.headers = {"Referer":"https://login.b8n.cn/",
@@ -21,19 +19,22 @@ class signClass:
         session = requests.Session()
         session.headers.update(self.headers)
         self.r = session
-    def login(self):
+    def saveQrcode(self):
         rLogin = self.r.get(self.loginStudentUrl)
         bsLogin = bs(rLogin.text, "lxml")
         wxJs = bsLogin.find_all(type="text/javascript")[-1].text
         wxUrl = wxJs[wxJs.find('"') + 1:wxJs.find(';') - 1]
         img = qrcode.make(wxUrl)
-        self.showQrcode(img)
+        img.save(self.imgPath)
+    def login(self):
+        print("Waiting for login.....")
         Login = self.r.get(self.checkLoginUrl)
         while json.loads(Login.text)["status"] == False:
             Login = self.r.get(self.checkLoginUrl)
         getCookiesUrl = json.loads(Login.text)["url"][:24] + "/uidlogin" + json.loads(Login.text)["url"][24:]
         self.r.get(getCookiesUrl)
         self.cookies = self.r.cookies
+        return True
     def signData(self):
         m = bs(self.r.get(self.urlStudent).text, "lxml").find_all("div", class_="card mb-3 course")
         signList = []
@@ -94,15 +95,6 @@ class signClass:
             result = bs(self.r.post(pwdUrl, data=data).text, "lxml").find(id="title").text
             data["pwd"]="0"*(4-len(str(pwd)))+str(pwd)
         return {"result":result,"pwd":"0"*(4-len(str(pwd)))+str(pwd)}
-    def showQrcode(self,img):
-        img.save(self.imgPath)
-        if self.showWay == 0:
-            pass
-        elif self.showWay == 1:
-            root = tk.Tk()
-            root.geometry("600x600")
-            QRLoginApp(root, self.imgPath)
-            root.mainloop()
 
 if __name__ == "__main__":
     sign = signClass()
