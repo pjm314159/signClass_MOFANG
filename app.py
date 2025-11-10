@@ -6,7 +6,7 @@ import Launch
 class runApp(Launch.Launch):
     def __init__(self):
         Launch.Launch.__init__(self)
-        self.interval = 5 # 等待时间请求数据
+        self.interval = 30 # 等待时间请求数据
         self.after = uniform(30,50)# 发现之后多久登录
         self.ifLogin = False
         self.isEnd = False
