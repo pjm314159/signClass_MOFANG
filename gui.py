@@ -48,6 +48,8 @@ class MyTaskBarIcon(TaskBarIcon):
             menu.Append(mentAttr[1], mentAttr[0])
         return menu
     def onTimer(self,event):
+        if self.app.signClass.Y:
+            self.onExit(event)
         if not self.p.is_alive() and not self.app.isEnd:
             self.start(event)
 
