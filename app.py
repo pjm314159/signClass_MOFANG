@@ -12,7 +12,7 @@ class runApp(Launch.Launch):
         self.isEnd = False
     def main(self):
         if not self.ifLogin:
-            self.register() # login
+            return # login
         c = self.signClass.signData() # get data
         check,data = self.search(c) # if you need to sign
         while not(check["gps"] or check["password"]):
@@ -56,6 +56,7 @@ class runApp(Launch.Launch):
         self.showUI()
         if self.p.is_alive():
             print("you don't have permission")
+            self.signClass.Y = True
             return None
         self.ifLogin = True
 
@@ -66,7 +67,7 @@ class runApp(Launch.Launch):
                 if j["status"] == 1:
                     check["gps"] = True
             for l in range(len(data[i]["data"]["password"])):
-                if [i]["data"]["password"][l]["status"] == 1:
+                if data[i]["data"]["password"][l]["status"] == 1:
                     result = self.signClass.passwordSign(data[i]["data"]["password"][l]["pwdUrl"])
                     if result == -1:
                         data[i]["data"]["password"][l]["status"] = -1

@@ -14,6 +14,7 @@ class signClass:
         self.domain = "http://bj.k8n.cn"
         self.urlStudent = self.domain + "/student"
         self.imgPath = "qrcode.png"  #图片保存路径
+        self.Y = False # 是否停止请求登录
     def createSession(self):
         session = requests.Session()
         session.headers.update(self.headers)
@@ -30,6 +31,8 @@ class signClass:
         Login = self.r.get(self.checkLoginUrl)
         while json.loads(Login.text)["status"] == False:
             Login = self.r.get(self.checkLoginUrl)
+            if self.Y:
+                return None
         getCookiesUrl = json.loads(Login.text)["url"][:24] + "/uidlogin" + json.loads(Login.text)["url"][24:]
         self.r.get(getCookiesUrl)
         self.cookies = self.r.cookies

@@ -16,6 +16,7 @@ class Launch:
         self.showUI()
         if self.p.is_alive():
             print("you don't have permission")
+            self.signClass.Y = True
             return None
         c = self.signClass.signData()
         gpsNumber = 0
