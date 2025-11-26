@@ -56,7 +56,7 @@ class signClass:
                     if typeMessage.text.find("位置") >= 0: #gpsid
                         fatherNode = p.find(id="punch_gps_frm_" + id)
                         if fatherNode:
-                            if fatherNode.find("input", id="punch_gps_inrange_" + id).get("value") == "1":
+                            if fatherNode.find("input", id="punch_gps_inrange_" + id).get("value") == "1": # 含gps数据
                                 location = fatherNode.find("input", id="punch_gps_ranges_" + id).get("value")[2:-2].split(",")
                                 for l in range(len(location)):
                                     location[l] = location[l].replace('"', '')
@@ -66,7 +66,13 @@ class signClass:
                                 gpsUrl = self.domain + fatherNode.find("form").get("action")
                                 aData["params"] = params
                                 aData["gpsUrl"] = gpsUrl
-                            else:
+                            else:# 不含gps数据，说明可能是简单位置上报或已签到又被老师设为未签到
+                                params = {
+                                    "lat": "", "lng": "", "acc": "1", "res": "", "gps_addr": ""
+                                }
+                                gpsUrl = self.domain + fatherNode.find("form").get("action")
+                                aData["gpsUrl"] = gpsUrl
+                                aData["params"] = params
                                 aData["status"] = -1
                         signList[i]["data"]["gps"].append(aData)
                     elif typeMessage.text.find("点名")>=0:
