@@ -13,6 +13,7 @@ class MyTaskBarIcon(TaskBarIcon):
     def __init__(self):
         self.ID_TEXT_2 = 500
         self.app = runApp()
+        self.app.loadLocation()
         self.app.register()
         self.p = Thread(target=self.app.main)
         TaskBarIcon.__init__(self)
