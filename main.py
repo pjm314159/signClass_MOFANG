@@ -42,22 +42,23 @@ class signClass:
         signList = []
         for i in range(len(m)):
             p = bs(self.r.get("http://bj.k8n.cn" + m[i].find("a").get("href") + "/punchs?op=ing").text, "lxml")
-            signList.append({"name":m[i].find("h5").text,"classId":m[i].find("a").get("href")[16:],"data":{"gps":[],"password":[],"qrcode":[],"readName":[]}}) #data
+            classId = m[i].find("a").get("href")[16:]
+            signList.append({"name":m[i].find("h5").text,"classId":classId,"data":{"gps":[],"password":[],"qrcode":[],"readName":[]}}) #data
             for j in p.find_all("div", class_="card-body"):
                 idType = j.get("id")
                 if idType:
-                    id = idType[10:]
-                    aData = {"id": id}
+                    signId = idType[10:]
+                    aData = {"id": signId,"status": None}
                     typeMessage = j.find(class_="subtitle")
                     if typeMessage.text.find("未签")>=0:
                         aData["status"] = 1
                     elif typeMessage.text.find("已签")>=0:
                         aData["status"] = 0
                     if typeMessage.text.find("位置") >= 0: #gpsid
-                        fatherNode = p.find(id="punch_gps_frm_" + id)
+                        fatherNode = p.find(id="punch_gps_frm_" + signId)
                         if fatherNode:
-                            if fatherNode.find("input", id="punch_gps_inrange_" + id).get("value") == "1": # 含gps数据
-                                location = fatherNode.find("input", id="punch_gps_ranges_" + id).get("value")[2:-2].split(",")
+                            if fatherNode.find("input", id="punch_gps_inrange_" + signId).get("value") == "1": # 含gps数据
+                                location = fatherNode.find("input", id="punch_gps_ranges_" + signId).get("value")[2:-2].split(",")
                                 for l in range(len(location)):
                                     location[l] = location[l].replace('"', '')
                                 params = {
@@ -76,11 +77,13 @@ class signClass:
                                 aData["status"] = -1
                         signList[i]["data"]["gps"].append(aData)
                     elif typeMessage.text.find("点名")>=0:
+                        aData["rollCallUrl"] = f"{self.domain}/student/punchs/course/{classId}/{signId}"
                         signList[i]["data"]["readName"].append(aData)
                     elif typeMessage.text.find("扫码") >= 0:
+                        aData["qrUrl"] = f"{self.domain}/student/punchs/course/{classId}/{signId}"
                         signList[i]["data"]["qrcode"].append(aData)
                     elif typeMessage.text.find("密码") >= 0:
-                        aData["pwdUrl"] = self.domain + f"/student/punchs/course/{signList[i]['classId']}/{id}"
+                        aData["pwdUrl"] = self.domain + f"/student/punchs/course/{signList[i]['classId']}/{signId}"
                         signList[i]["data"]["password"].append(aData)
         return signList
     def gpsSign(self,location,gpsUrl):
@@ -101,22 +104,31 @@ class signClass:
                 return -1
             pwd += 1
             result = bs(self.r.post(pwdUrl, data=data).text, "lxml").find(id="title").text
+            print(result,pwd)
             data["pwd"]="0"*(4-len(str(pwd)))+str(pwd)
         return {"result":result,"pwd":"0"*(4-len(str(pwd)))+str(pwd)}
-
+    def qrcodeSign(self,location,qrcodeUrl):
+        """网站代码太蠢，可以用gps的签二维码签到"""
+        return self.gpsSign(location,qrcodeUrl)
+    def rollCallSign(self,location,rollCallUrl):
+        return self.gpsSign(location,rollCallUrl)
 if __name__ == "__main__":
     sign = signClass()
     sign.createSession()
+    sign.saveQrcode()
     sign.login()
     c = sign.signData()
-    print(c)
-    for i in range(len(c)):
-        for j in c[i]["data"]["gps"]:
-            if j["status"] == 1:
-               print(sign.gpsSign(j["params"],j["gpsUrl"]))
-        for l in range(len(c[i]["data"]["password"])):
-            if c[i]["data"]["password"][l]["status"] == 1:
-                result = sign.passwordSign(c[i]["data"]["password"][l]["pwdUrl"])
-                if result==-1:
-                    c[i]["data"]["password"][l]["status"] = -1
-                print(sign.passwordSign(c[i]["data"]["password"][l]["pwdUrl"]))
+    params = {"lat":"","lng":""}
+    qr_url = "http://bj.k8n.cn/student/punchs/course/128358/"+c[1]["data"]["readName"][0]["id"]
+    print(sign.gpsSign(params,qr_url))
+
+    # for i in range(len(c)):
+    #     for j in c[i]["data"]["gps"]:
+    #         if j["status"] == 1:
+    #            print(sign.gpsSign(j["params"],j["gpsUrl"]))
+    #     for l in range(len(c[i]["data"]["password"])):
+    #         if c[i]["data"]["password"][l]["status"] == 1:
+    #             result = sign.passwordSign(c[i]["data"]["password"][l]["pwdUrl"])
+    #             if result==-1:
+    #                 c[i]["data"]["password"][l]["status"] = -1
+    #             print(sign.passwordSign(c[i]["data"]["password"][l]["pwdUrl"]))
