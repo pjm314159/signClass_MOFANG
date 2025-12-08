@@ -1,5 +1,4 @@
 ﻿import time
-from random import uniform
 from threading import Thread
 import Launch
 import configparser
@@ -8,7 +7,7 @@ class runApp(Launch.Launch):
     def __init__(self):
         Launch.Launch.__init__(self)
         self.interval = 30 # 等待时间请求数据
-        self.after = 1# uniform(30,50)# 发现之后多久登录
+        self.after = 30  # 发现之后多久签到
         self.ifLogin = False
         self.isEnd = False
         self.configPath = "config.ini"
@@ -32,16 +31,27 @@ class runApp(Launch.Launch):
         self.sign(data)
     def loadLocation(self):
         self.locationParams = []
-        config = configparser.ConfigParser()
-        if config.read(self.configPath):
-            for section in config.sections():
-                params = {"lat":config[section]["lat"],"lng":config[section]["lng"]}
-                self.locationParams.append(params)
-            if not self.locationParams: # if empty
-                self.locationParams.append(self.defaultLocation)
-            return self.locationParams
-        else:
+        config = configparser.ConfigParser(
+            allow_no_value=False,  # 是否允许无值的键
+            comment_prefixes=('#', ';'),  # 注释符号
+            inline_comment_prefixes=('#', ';'),  # 允许行内注释
+            strict=True,  # 是否禁止重复的节或键
+        )
+        if not config.read(self.configPath):
             return None
+        if config.has_section("location"):
+            params = {"lat":config.get("location","lat"),"lng":config.get("location","lng")}
+            self.locationParams.append(params)
+        if config.has_section("settings"):
+            if config.has_option("settings", "after"):
+                self.after = config.getint("settings", "after")
+            if config.has_option("settings", "interval"):
+                self.interval = config.getint("settings", "interval")
+        if not self.locationParams: # if empty
+            self.locationParams.append(self.defaultLocation)
+
+        return self.locationParams
+
     def sign(self,data):
         for i in range(len(data)):
             for j in data[i]["data"]["gps"]:
@@ -74,12 +84,12 @@ class runApp(Launch.Launch):
                     for qr_location in self.locationParams:
                         result = self.signClass.qrcodeSign(qr_location, qr_each_data["qrUrl"])
                         if result == "签到成功":
-                            print(f"qrcode signId:{qr_each_data["id"]}:{result}")
+                            print(f"qrcode signId[{qr_each_data["id"]}]:{result}")
                             break
                         elif result == "我已签到过啦":
-                            print(f"qrcode signId:{qr_each_data["id"]},你已签过但又被管理员设为未签")
+                            print(f"qrcode signId[{qr_each_data["id"]}]:你已签过但又被管理员设为未签")
                         else:
-                            print(f"qrcode signId:{qr_each_data["id"]},{result}")
+                            print(f"qrcode signId[{qr_each_data["id"]}]:{result}")
             for roll_call_each_data in data[i]["data"]["readName"]:
                 if roll_call_each_data["status"] == 1:
                     for roll_call_location in self.locationParams:
