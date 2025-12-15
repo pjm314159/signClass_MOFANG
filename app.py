@@ -2,15 +2,17 @@
 from threading import Thread
 import Launch
 import configparser
+from logger import info, warning, error, debug
 
 class runApp(Launch.Launch):
     def __init__(self):
         Launch.Launch.__init__(self)
         self.interval = 30 # 等待时间请求数据
-        self.after = 30  # 发现之后多久签到
+        self.after = 1  # 发现之后多久签到
         self.ifLogin = False
         self.isEnd = False
         self.configPath = "config.ini"
+        self.configPathEncoding = "utf-8"
         self.locationParams = None
         self.defaultLocation = {"lat":113.393119,"lng":23.039277}
     def main(self):
@@ -19,26 +21,31 @@ class runApp(Launch.Launch):
         c = self.signClass.signData() # get data
         check,data = self.search(c) # if you need to sign
         while not(check["gps"] or check["password"] or check["qrcode"] or check["rollCall"]):
-            print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),"check:NONE")
+            info("check:NONE")
             if self.isEnd:
-                print("end")
+                info("end")
                 return
             time.sleep(self.interval)
             c = self.signClass.signData()
             check, data = self.search(c)
-        print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "check:find data")
+        info("check:find data")
         time.sleep(self.after)
         self.sign(data)
-    def loadLocation(self):
-        self.locationParams = []
+    def readConfig(self):
         config = configparser.ConfigParser(
             allow_no_value=False,  # 是否允许无值的键
             comment_prefixes=('#', ';'),  # 注释符号
             inline_comment_prefixes=('#', ';'),  # 允许行内注释
             strict=True,  # 是否禁止重复的节或键
+            interpolation=None #禁用插值
         )
-        if not config.read(self.configPath):
-            return None
+        with open('config.ini', 'r', encoding=self.configPathEncoding) as file:
+            content = file.read()
+            config.read_string(content)
+        return config
+    def loadLocation(self,config):
+        self.locationParams = []
+
         if config.has_section("location"):
             params = {"lat":config.get("location","lat"),"lng":config.get("location","lng")}
             self.locationParams.append(params)
@@ -51,24 +58,34 @@ class runApp(Launch.Launch):
             self.locationParams.append(self.defaultLocation)
 
         return self.locationParams
-
+    def save_cookies(self, cookies,config):
+        info("save user login data")
+        if not config.has_section("user"):
+            config.add_section('user')
+        for cookie in cookies:
+            if "remember_student" in cookie.name:
+                config.set("user", cookie.name,cookie.value)
+                config.set("user","expires",str(cookie.expires))
+        with open(self.configPath, "w", encoding=self.configPathEncoding) as f:
+            config.write(f)
     def sign(self,data):
         for i in range(len(data)):
             for j in data[i]["data"]["gps"]:
                 if j["status"] == 1:  # 未签
-                    print(f"gps[signId:{j["id"]}]:" + self.signClass.gpsSign(j["params"], j["gpsUrl"]))
+                    result = self.signClass.gpsSign(j["params"], j["gpsUrl"])
+                    info(f"gps[signId:{j['id']}]:{result}")
                 if j["status"] == -1: #  可能你以签过但又被管理员设为未签，又或者这次gps不设范围
                     # 尝试签到
                     if not self.locationParams:
-                        print("gps无数据加载")
+                        warning("gps无数据加载")
                     for p in self.locationParams:
                         j["params"]["lat"] = p["lat"]
                         j["params"]["lng"] = p["lng"]
                         message = self.signClass.gpsSign(j["params"], j["gpsUrl"])
                         if message == "我已签到过啦":
-                            print(f"gps signId[{j["id"]}]:你已签过但又被管理员设为未签")
+                            info(f"gps signId[{j['id']}]:你已签过但又被管理员设为未签")
                         elif message == "签到成功":
-                            print(f"gps signId[{j["id"]}]:{message}")
+                            info(f"gps signId[{j['id']}]:{message}")
                             break
 
             for pwd_each_data in data[i]["data"]["password"]:
@@ -76,43 +93,62 @@ class runApp(Launch.Launch):
                     result = self.signClass.passwordSign(pwd_each_data["pwdUrl"])
                     if result == -1:  # 说明
                         pwd_each_data["status"] = -1
-                        print(f"password signId[{pwd_each_data["id"]}]:你已签过但又被管理员设为未签")
+                        info(f"password signId[{pwd_each_data['id']}]:你已签过但又被管理员设为未签")
                     else:
-                        print(f"password signId[{pwd_each_data["id"]}]:{result}")
+                        info(f"password signId[{pwd_each_data['id']}]:{result}")
             for qr_each_data in data[i]["data"]["qrcode"]: # 二维码签到
                 if qr_each_data["status"] == 1:  # 未签
                     for qr_location in self.locationParams:
                         result = self.signClass.qrcodeSign(qr_location, qr_each_data["qrUrl"])
                         if result == "签到成功":
-                            print(f"qrcode signId[{qr_each_data["id"]}]:{result}")
+                            info(f"qrcode signId[{qr_each_data['id']}]:{result}")
                             break
                         elif result == "我已签到过啦":
-                            print(f"qrcode signId[{qr_each_data["id"]}]:你已签过但又被管理员设为未签")
+                            info(f"qrcode signId[{qr_each_data['id']}]:你已签过但又被管理员设为未签")
                         else:
-                            print(f"qrcode signId[{qr_each_data["id"]}]:{result}")
+                            info(f"qrcode signId[{qr_each_data['id']}]:{result}")
             for roll_call_each_data in data[i]["data"]["readName"]:
                 if roll_call_each_data["status"] == 1:
                     for roll_call_location in self.locationParams:
                         result = self.signClass.rollCallSign(roll_call_location, roll_call_each_data["rollCallUrl"])
                         if result == "签到成功":
-                            print(f"roll call signId:{roll_call_each_data["id"]}:{result}")
+                            info(f"roll call signId:{roll_call_each_data['id']}:{result}")
                             break
                         elif result == "我已签到过啦":
-                            print(f"roll call signId:{roll_call_each_data["id"]},你已签过但又被管理员设为未签")
+                            info(f"roll call signId:{roll_call_each_data['id']},你已签过但又被管理员设为未签")
                         else:
-                            print(f"roll call signId:{roll_call_each_data["id"]},{result}")
+                            info(f"roll call signId:{roll_call_each_data['id']},{result}")
 
-
-    def register(self):
-        self.signClass.createSession()
+    def origin_register(self,config):
+        info("init register")
         self.signClass.saveQrcode()
         self.p = Thread(target=self.signClass.login)
         self.p.start()
         self.showUI()
         if self.p.is_alive():
-            print("you don't have permission")
+            warning("you don't have permission")
             self.signClass.Y = True
             return None
+        self.save_cookies(config=config, cookies=self.signClass.r.cookies)
+    def register(self,config):
+
+        self.signClass.createSession()
+        if config.has_section("user"):
+            for i in config.items("user"):
+                if "remember_student" in i[0]:
+                    name = i[0]
+                    value = i[1]
+                if "expires" == i[0]:
+                    if time.time() >int(i[1]):
+                        if not self.origin_register(config):
+                            info("cookie expired outdate")
+                            self.ifLogin = True
+                            return
+            info("find user login data")
+            self.signClass.r.cookies.update({name:value})
+        else:
+            if not self.origin_register(config):
+                info("create user login data")
         self.ifLogin = True
 
     def search(self,data):
@@ -140,6 +176,7 @@ class runApp(Launch.Launch):
         return check,data
 if __name__ == "__main__":
     c = runApp()
-    c.loadLocation()
-    c.register()
+    config = c.readConfig()
+    c.loadLocation(config)
+    c.register(config)
     c.main()
