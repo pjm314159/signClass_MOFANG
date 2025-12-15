@@ -8,7 +8,7 @@ class runApp(Launch.Launch):
     def __init__(self):
         Launch.Launch.__init__(self)
         self.interval = 30 # 等待时间请求数据
-        self.after = 1  # 发现之后多久签到
+        self.after = 30  # 发现之后多久签到
         self.ifLogin = False
         self.isEnd = False
         self.configPath = "config.ini"
