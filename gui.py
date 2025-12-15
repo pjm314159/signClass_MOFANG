@@ -3,6 +3,7 @@ from wx import App, Frame, Icon, EVT_MENU, Menu, Timer, EVT_TIMER,MenuItem,Messa
 from wx.adv import TaskBarIcon
 from app import runApp
 from threading import Thread
+from logger import info
 class MyTaskBarIcon(TaskBarIcon):
     ICON = "favicon.ico"
     TITLE = "signMoFang"
@@ -13,8 +14,9 @@ class MyTaskBarIcon(TaskBarIcon):
     def __init__(self):
         self.ID_TEXT_2 = 500
         self.app = runApp()
-        self.app.loadLocation()
-        self.app.register()
+        config = self.app.readConfig()
+        self.app.loadLocation(config)
+        self.app.register(config)
         self.p = Thread(target=self.app.main)
         TaskBarIcon.__init__(self)
         self.timer = Timer(self)
@@ -27,16 +29,19 @@ class MyTaskBarIcon(TaskBarIcon):
     def start(self, event):
         self.app.isEnd = False
         if not self.p.is_alive():
+            info("sign start")
             self.p = Thread(target=self.app.main)
             self.p.start()
         else:
             self.app.isEnd = True
             MessageBox("请上一个结束后再试")
     def stop(self, event):
+        info("stop thread")
         self.app.isEnd = True
     def onExit(self, event):
         self.stop(event)
         self.Destroy()
+        info("exit program")
     def CreatePopupMenu(self):
         menu = Menu()
         menuText = MenuItem(menu, self.ID_TEXT, f"是否开启:{not self.app.isEnd}")
@@ -67,6 +72,9 @@ class MyApp(App):
     def OnInit(self):
         MyFrame()
         return True
+def main():
+    app = MyApp()
+    app.MainLoop()
 if __name__ == '__main__':
     app = MyApp()
     app.MainLoop()

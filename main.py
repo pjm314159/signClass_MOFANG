@@ -1,7 +1,9 @@
 import requests
 from bs4 import BeautifulSoup as bs
 import qrcode
-import  json
+import json
+from logger import info, debug
+import re
 class signClass:
     def __init__(self):
         self.headers = {"Referer":"https://login.b8n.cn/",
@@ -27,7 +29,7 @@ class signClass:
         img = qrcode.make(wxUrl)
         img.save(self.imgPath)
     def login(self):
-        print("Waiting for login.....")
+        info("Waiting for login.....")
         Login = self.r.get(self.checkLoginUrl)
         while json.loads(Login.text)["status"] == False:
             Login = self.r.get(self.checkLoginUrl)
@@ -38,53 +40,98 @@ class signClass:
         self.cookies = self.r.cookies
         return True
     def signData(self):
-        m = bs(self.r.get(self.urlStudent).text, "lxml").find_all("div", class_="card mb-3 course")
+        body_text = bs(self.r.get(self.urlStudent).text, "lxml")
+        m = body_text.find_all("div", class_="card mb-3 course")
         signList = []
         for i in range(len(m)):
-            p = bs(self.r.get("http://bj.k8n.cn" + m[i].find("a").get("href") + "/punchs?op=ing").text, "lxml")
+            course_url = "http://bj.k8n.cn" + m[i].find("a").get("href") + "/punchs?op=ing"
+            classId_search = re.search(r'/student/course/(\d+)',m[i].find("a").get("href"))
+            if classId_search:
+                classId = classId_search.group(1)
+            else:
+                raise Exception
+            req = self.r.get(course_url)
+
             classId = m[i].find("a").get("href")[16:]
-            signList.append({"name":m[i].find("h5").text,"classId":classId,"data":{"gps":[],"password":[],"qrcode":[],"readName":[]}}) #data
-            for j in p.find_all("div", class_="card-body"):
-                idType = j.get("id")
-                if idType:
-                    signId = idType[10:]
-                    aData = {"id": signId,"status": None}
-                    typeMessage = j.find(class_="subtitle")
-                    if typeMessage.text.find("未签")>=0:
+            signList.append({"name": m[i].find("h5").text, "classId": classId,
+                             "data": {"gps": [], "password": [], "qrcode": [], "readName": []}})
+            p = bs(req.text, "lxml")
+            # 未进行重定向
+            if req.url == course_url:
+                # data
+                for j in p.find_all("div", class_="card-body"):
+                    idType = j.get("id")
+                    if idType:
+                        signId = idType[10:]
+                        aData = {"id": signId, "status": None}
+                        typeMessage = j.find(class_="subtitle")
+                        if typeMessage.text.find("未签") >= 0:
+                            aData["status"] = 1
+                        elif typeMessage.text.find("已签") >= 0:
+                            aData["status"] = 0
+                        if typeMessage.text.find("位置") >= 0:  # gpsid
+                            fatherNode = p.find(id="punch_gps_frm_" + signId)
+                            if fatherNode:
+                                if fatherNode.find("input", id="punch_gps_inrange_" + signId).get(
+                                        "value") == "1":  # 含gps数据
+                                    location = fatherNode.find("input", id="punch_gps_ranges_" + signId).get("value")[
+                                        2:-2].split(",")
+                                    for l in range(len(location)):
+                                        location[l] = location[l].replace('"', '')
+                                    params = {
+                                        "lat": location[0], "lng": location[1], "acc": "1", "res": "", "gps_addr": ""
+                                    }
+                                    gpsUrl = self.domain + fatherNode.find("form").get("action")
+                                    aData["params"] = params
+                                    aData["gpsUrl"] = gpsUrl
+                                else:  # 不含gps数据，说明可能是简单位置上报或已签到又被老师设为未签到
+                                    params = {
+                                        "lat": "", "lng": "", "acc": "1", "res": "", "gps_addr": ""
+                                    }
+                                    gpsUrl = self.domain + fatherNode.find("form").get("action")
+                                    aData["gpsUrl"] = gpsUrl
+                                    aData["params"] = params
+                                    aData["status"] = -1
+                            signList[i]["data"]["gps"].append(aData)
+                        elif typeMessage.text.find("点名") >= 0:
+                            aData["rollCallUrl"] = f"{self.domain}/student/punchs/course/{classId}/{signId}"
+                            signList[i]["data"]["readName"].append(aData)
+                        elif typeMessage.text.find("扫码") >= 0:
+                            aData["qrUrl"] = f"{self.domain}/student/punchs/course/{classId}/{signId}"
+                            signList[i]["data"]["qrcode"].append(aData)
+                        elif typeMessage.text.find("密码") >= 0:
+                            aData["pwdUrl"] = self.domain + f"/student/punchs/course/{signList[i]['classId']}/{signId}"
+                            signList[i]["data"]["password"].append(aData)
+            else: # 进行重定向，说明是gps签到
+                signId = re.search(r'/student/punchs/course/\d+/(\d+)',req.url)
+                if not signId:
+                    raise Exception
+                signId = signId.group(1)
+                aData = {"id": signId, "status": None}
+                info_text = p.find_all("script",type="text/javascript")[1].text.strip()
+                value = re.search(r'var\s+gpsranges\s*=\s*(.*?);', info_text)
+                if value:
+                    value = value.group(1)
+                    if value == "null": # 不含gps数据，说明可能是简单位置上报或已签到又被老师设为未签到
+                        params = {
+                            "lat": "", "lng": "", "acc": "1", "res": "", "gps_addr": ""
+                        }
+                        gpsUrl = req.url
+                        aData["gpsUrl"] = gpsUrl
+                        aData["params"] = params
+                        aData["status"] = -1
+                    else:# 说明是范围签到
+                        exact_data = json.loads(value)[0]
+                        params = {
+                            "lat": "", "lng": "", "acc": "1", "res": "", "gps_addr": ""
+                        }
+                        params["lat"] = exact_data[0]
+                        params["lng"] = exact_data[1]
+                        aData["gpsUrl"] = req.url
+                        aData["params"] = params
                         aData["status"] = 1
-                    elif typeMessage.text.find("已签")>=0:
-                        aData["status"] = 0
-                    if typeMessage.text.find("位置") >= 0: #gpsid
-                        fatherNode = p.find(id="punch_gps_frm_" + signId)
-                        if fatherNode:
-                            if fatherNode.find("input", id="punch_gps_inrange_" + signId).get("value") == "1": # 含gps数据
-                                location = fatherNode.find("input", id="punch_gps_ranges_" + signId).get("value")[2:-2].split(",")
-                                for l in range(len(location)):
-                                    location[l] = location[l].replace('"', '')
-                                params = {
-                                    "lat": location[0], "lng": location[1], "acc": "1", "res": "", "gps_addr": ""
-                                }
-                                gpsUrl = self.domain + fatherNode.find("form").get("action")
-                                aData["params"] = params
-                                aData["gpsUrl"] = gpsUrl
-                            else:# 不含gps数据，说明可能是简单位置上报或已签到又被老师设为未签到
-                                params = {
-                                    "lat": "", "lng": "", "acc": "1", "res": "", "gps_addr": ""
-                                }
-                                gpsUrl = self.domain + fatherNode.find("form").get("action")
-                                aData["gpsUrl"] = gpsUrl
-                                aData["params"] = params
-                                aData["status"] = -1
-                        signList[i]["data"]["gps"].append(aData)
-                    elif typeMessage.text.find("点名")>=0:
-                        aData["rollCallUrl"] = f"{self.domain}/student/punchs/course/{classId}/{signId}"
-                        signList[i]["data"]["readName"].append(aData)
-                    elif typeMessage.text.find("扫码") >= 0:
-                        aData["qrUrl"] = f"{self.domain}/student/punchs/course/{classId}/{signId}"
-                        signList[i]["data"]["qrcode"].append(aData)
-                    elif typeMessage.text.find("密码") >= 0:
-                        aData["pwdUrl"] = self.domain + f"/student/punchs/course/{signList[i]['classId']}/{signId}"
-                        signList[i]["data"]["password"].append(aData)
+                    signList[i]["data"]["gps"].append(aData)
+
         return signList
     def gpsSign(self,location,gpsUrl):
         params = {
@@ -104,7 +151,7 @@ class signClass:
                 return -1
             pwd += 1
             result = bs(self.r.post(pwdUrl, data=data).text, "lxml").find(id="title").text
-            print(result,pwd)
+            debug(f"{result}, password={pwd}")
             data["pwd"]="0"*(4-len(str(pwd)))+str(pwd)
         return {"result":result,"pwd":"0"*(4-len(str(pwd)))+str(pwd)}
     def qrcodeSign(self,location,qrcodeUrl):
