@@ -1,5 +1,5 @@
-﻿import time
-from threading import Thread
+﻿from time import time
+from threading import Thread,Event
 import Launch
 import configparser
 from logger import info, warning, error, debug
@@ -10,7 +10,7 @@ class runApp(Launch.Launch):
         self.interval = 30 # 等待时间请求数据
         self.after = 30  # 发现之后多久签到
         self.ifLogin = False
-        self.isEnd = False
+        self.stop_event = Event()
         self.configPath = "config.ini"
         self.configPathEncoding = "utf-8"
         self.locationParams = None
@@ -22,14 +22,15 @@ class runApp(Launch.Launch):
         check,data = self.search(c) # if you need to sign
         while not(check["gps"] or check["password"] or check["qrcode"] or check["rollCall"]):
             info("check:NONE")
-            if self.isEnd:
+            if self.stop_event.wait(self.interval):
                 info("end")
                 return
-            time.sleep(self.interval)
             c = self.signClass.signData()
             check, data = self.search(c)
         info("check:find data")
-        time.sleep(self.after)
+        if self.stop_event.wait(self.after):
+            warning("force quit in waiting for sign")
+            return
         self.sign(data)
     def readConfig(self):
         config = configparser.ConfigParser(
@@ -139,7 +140,7 @@ class runApp(Launch.Launch):
                     name = i[0]
                     value = i[1]
                 if "expires" == i[0]:
-                    if time.time() >int(i[1]):
+                    if time() >int(i[1]):
                         if not self.origin_register(config):
                             info("cookie expired outdate")
                             self.ifLogin = True

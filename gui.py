@@ -27,28 +27,28 @@ class MyTaskBarIcon(TaskBarIcon):
         self.Bind(EVT_MENU, self.stop, id=self.ID_STOP)
         self.timer.Start(30)
     def start(self, event):
-        self.app.isEnd = False
+        self.app.stop_event.clear()
         if not self.p.is_alive():
             info("sign start")
             self.p = Thread(target=self.app.main)
             self.p.start()
         else:
-            self.app.isEnd = True
+            self.app.stop_event.set()
             MessageBox("请上一个结束后再试")
     def stop(self, event):
         info("stop thread")
-        self.app.isEnd = True
+        self.app.stop_event.set()
     def onExit(self, event):
         self.stop(event)
         self.Destroy()
         info("exit program")
     def CreatePopupMenu(self):
         menu = Menu()
-        menuText = MenuItem(menu, self.ID_TEXT, f"是否开启:{not self.app.isEnd}")
-        menuText_2 = MenuItem(menu, self.ID_TEXT_2 ,f"线程是否存活:{self.p.is_alive()}")
+        menuText = MenuItem(menu, self.ID_TEXT, f"是否开启:{not self.app.stop_event.is_set()}")
+        # menuText_2 = MenuItem(menu, self.ID_TEXT_2 ,f"线程是否存活:{self.p.is_alive()}")
         menu.Append(menuText)
-        menu.Append(menuText_2)
-        menuText_2.Enable(False)
+        # menu.Append(menuText_2)
+        # menuText_2.Enable(False)
         menuText.Enable(False)
         for mentAttr in self.getMenuAttrs():
             menu.Append(mentAttr[1], mentAttr[0])
@@ -56,7 +56,7 @@ class MyTaskBarIcon(TaskBarIcon):
     def onTimer(self,event):
         if self.app.signClass.Y:
             self.onExit(event)
-        if not self.p.is_alive() and not self.app.isEnd:
+        if not self.p.is_alive() and not self.app.stop_event.is_set():
             self.start(event)
 
     def getMenuAttrs(self):
