@@ -1,0 +1,7 @@
+requests
+Pillow
+lxml
+wxpython
+prompt_toolkit.widgets
+qrcode
+beautifulsoup
