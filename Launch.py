@@ -1,5 +1,5 @@
 from main import signClass
-from os import system
+from os import system, path
 from threading import Thread
 from showqrcode import QRLoginApp
 import tkinter as tk

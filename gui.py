@@ -1,13 +1,15 @@
 from os import path
+from threading import Thread
 
 from prompt_toolkit.widgets import MenuItem
 from wx import App, Frame, Icon, EVT_MENU, Menu, Timer, EVT_TIMER, MenuItem, MessageBox, Bitmap, MemoryDC, Brush, \
-    Colour, Pen, NullBitmap, ArtProvider, ART_INFORMATION, ART_OTHER, TRANSPARENT_PEN, GraphicsRenderer, \
-    GraphicsContext, TRANSPARENT_BRUSH
+    Colour, Pen, NullBitmap, ArtProvider, ART_INFORMATION, ART_OTHER
 from wx.adv import TaskBarIcon
+
 from app import runApp
-from threading import Thread
 from logger import info
+
+
 class MyTaskBarIcon(TaskBarIcon):
     ICON = "favicon.ico"
     TITLE = "signMoFang"

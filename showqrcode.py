@@ -1,12 +1,14 @@
+import os
 import tkinter as tk
 from PIL import Image, ImageTk
 
 
 class QRLoginApp:
-    def __init__(self, root, image_path):
+    def __init__(self, root, image_path,iconPath="favicon.ico"):
         self.root = root
         self.root.title("二维码登录")
-
+        if os.path.exists(iconPath):
+            self.root.iconbitmap(iconPath)
         # 加载原始图片
         self.original = Image.open(image_path)
         self.aspect_ratio = self.original.width / self.original.height
