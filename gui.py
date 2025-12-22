@@ -1,5 +1,9 @@
+from os import path
+
 from prompt_toolkit.widgets import MenuItem
-from wx import App, Frame, Icon, EVT_MENU, Menu, Timer, EVT_TIMER,MenuItem,MessageBox
+from wx import App, Frame, Icon, EVT_MENU, Menu, Timer, EVT_TIMER, MenuItem, MessageBox, Bitmap, MemoryDC, Brush, \
+    Colour, Pen, NullBitmap, ArtProvider, ART_INFORMATION, ART_OTHER, TRANSPARENT_PEN, GraphicsRenderer, \
+    GraphicsContext, TRANSPARENT_BRUSH
 from wx.adv import TaskBarIcon
 from app import runApp
 from threading import Thread
@@ -12,7 +16,6 @@ class MyTaskBarIcon(TaskBarIcon):
     ID_STOP = 300
     ID_TEXT = 400
     def __init__(self):
-        self.ID_TEXT_2 = 500
         self.app = runApp()
         config = self.app.readConfig()
         self.app.loadLocation(config)
@@ -20,12 +23,49 @@ class MyTaskBarIcon(TaskBarIcon):
         self.p = Thread(target=self.app.main)
         TaskBarIcon.__init__(self)
         self.timer = Timer(self)
-        self.SetIcon(Icon(self.ICON), self.TITLE)
+        self.setup_icon()
         self.Bind(EVT_TIMER, self.onTimer, self.timer)
         self.Bind(EVT_MENU, self.onExit, id=self.ID_EXIT)
         self.Bind(EVT_MENU, self.start, id=self.ID_START)
         self.Bind(EVT_MENU, self.stop, id=self.ID_STOP)
         self.timer.Start(30)
+
+    def setup_icon(self):
+        """设置窗口图标，如果文件不存在则使用默认图标"""
+        try:
+            if path.exists(self.ICON):
+                # 文件存在，加载指定图标
+                icon = Icon(self.ICON)
+            else:
+                # 获取系统图标
+                icon = ArtProvider.GetIcon(ART_INFORMATION, ART_OTHER, (32, 32))
+        except :
+            # 创建默认图标（一个简单的彩色方块）
+            icon = self.create_default_icon()
+
+        # 设置窗口图标
+        self.SetIcon(icon)
+
+        # 如果需要，也可以同时设置任务栏图标
+        # 对于wxPython，SetIcon已经足够
+
+    def create_default_icon(self):
+        """创建默认图标"""
+        # 创建一个简单的位图作为默认图标
+        bmp = Bitmap(32, 32)
+        dc = MemoryDC(bmp)
+        dc.SetBackground(Brush(Colour(50, 120, 200)))  # 蓝色背景
+        dc.Clear()
+        dc.SetPen(Pen(Colour(255, 255, 255), 2))  # 白色边框
+        dc.SetBrush(Brush(Colour(255, 200, 50)))  # 黄色填充
+        dc.DrawCircle(16, 16, 12)  # 画一个圆
+        dc.SelectObject(NullBitmap)
+
+        # 将位图转换为图标
+        icon = Icon()
+        icon.CopyFromBitmap(bmp)
+        return icon
+
     def start(self, event):
         self.app.stop_event.clear()
         if not self.p.is_alive():

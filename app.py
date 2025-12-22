@@ -1,4 +1,5 @@
-﻿from time import time
+﻿import os
+from time import time
 from threading import Thread,Event
 import Launch
 import configparser
@@ -40,9 +41,12 @@ class runApp(Launch.Launch):
             strict=True,  # 是否禁止重复的节或键
             interpolation=None #禁用插值
         )
-        with open('config.ini', 'r', encoding=self.configPathEncoding) as file:
-            content = file.read()
-            config.read_string(content)
+        if os.path.exists(self.configPath):
+            with open('config.ini', 'r', encoding=self.configPathEncoding) as file:
+                content = file.read()
+                config.read_string(content)
+        else:
+            pass
         return config
     def loadLocation(self,config):
         self.locationParams = []
