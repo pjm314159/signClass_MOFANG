@@ -19,8 +19,9 @@ class ConfigManager:
     # 配置文件路径和编码
     config_path:str = "config.yaml"
     config_encoding:str = "utf-8"
-    icon_path:str = "assets/favicon.ico"
-
+    icon_path:str = "favicon.ico"
+    # 弹窗提示间隔
+    count_time:int = 300
     # 配置文件的节(section)列表
     sections:list[str] = ["settings","location","logging","urls","not_find_signId"]
 
@@ -50,7 +51,7 @@ class ConfigManager:
     # HTTP请求头
     headers = {"Referer":"https://login.b8n.cn/",
     "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"}
-    def init_config(self):
+    def init_config(self)->None:
         """初始化配置文件
 
         如果配置文件不存在则创建默认配置文件，
@@ -86,7 +87,7 @@ class ConfigManager:
         if "user" in data:
             self.user = data["user"]
 
-    def creat_config(self):
+    def creat_config(self)->None:
         """创建默认配置文件
 
         根据类中定义的默认配置创建配置文件
@@ -111,7 +112,7 @@ class ConfigManager:
         for section in self.sections:
             data[section] = getattr(self, section)
         return data
-    def get(self,section,key,fallback=None):
+    def get(self,section,key,fallback=None)->Any:
         """获取指定配置项的值
 
         Args:
@@ -157,4 +158,3 @@ class ConfigManager:
             f.write(yaml.safe_dump(data,allow_unicode=True))
 
 config = ConfigManager()
-

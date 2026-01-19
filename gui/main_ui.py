@@ -4,7 +4,7 @@ import wx.adv
 from os import path
 from datetime import datetime
 from wx import ArtProvider, ART_INFORMATION, ART_OTHER
-
+from time import time
 from core.scheduler import Scheduler
 from infrastructure.logger import warning
 from config.config_manager import config
@@ -58,11 +58,12 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         self.Bind(wx.EVT_MENU, lambda e: self.frame.on_login(e, "teacher"), teacher_login_item)
         self.Bind(wx.EVT_MENU, self.frame.on_exit, exit_item)
 
-        # 根据条件动态显示/隐藏教师登录菜单项
+        # 根据条件动态显示/隐藏登录菜单项
         if not self.frame.show_teacher_login:
             teacher_login_item.Enable(False)
             teacher_login_item.SetItemLabel("教师登录(未启用)")
-
+        if not config.user.get("student"):
+            start_item.Enable(False)
         # 动态禁用/启用菜单项
         if self.frame.scheduler.running:
             start_item.Enable(False)
@@ -110,6 +111,8 @@ class MainFrame(wx.Frame):
         # 更新登录状态显示
         self.update_login_status()
         self.auto_start()
+        # 弹窗的计时器
+        self.count_time = 0
     def auto_start(self):
         if not config.user.get("student") or not config.settings.get("auto_start"):
             return
@@ -143,6 +146,8 @@ class MainFrame(wx.Frame):
 
         self.btn_stop.Disable()  # 初始状态禁用停止
         if not config.user.get("student"):
+            self.btn_start.Disable()
+        if int(config.user.get("student").get("expire"))< time():
             self.btn_start.Disable()
         # 根据条件显示或隐藏教师登录按钮
         if not self.show_teacher_login:
@@ -312,7 +317,9 @@ class MainFrame(wx.Frame):
         self.Hide()
         # 气泡提示 (Windows有效)
         try:
-            self.task_bar_icon.ShowBalloon("自动签到", "程序仍在后台运行，双击托盘图标打开")
+            if time()-self.count_time > config.count_time:
+                self.task_bar_icon.ShowBalloon("自动签到", "程序仍在后台运行，双击托盘图标打开")
+                self.count_time = time()
         except:
             pass  # 某些平台不支持气泡提示
 

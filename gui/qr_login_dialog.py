@@ -53,7 +53,7 @@ class QRLoginDialog(wx.Dialog):
 
         # 1. 文本标签
         font = wx.Font(16, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
-        self.label = wx.StaticText(panel, label="请扫描二维码登录,登录后自动关闭")
+        self.label = wx.StaticText(panel, label="请微信扫描二维码登录,登录后自动关闭")
         self.label.SetFont(font)
         self.label.SetForegroundColour('#333333')
 
